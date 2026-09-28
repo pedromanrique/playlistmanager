@@ -406,13 +406,19 @@ async function loadDevices(){
   sel.value=pick.id;
   store('sp_device',pick.id);
 }
+function normText(s){
+  return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+}
 var formUris=[];
 function renderPlaylistChecks(){
   var box=$('fPlaylists'); box.innerHTML='';
   if(!state.playlists.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">No se encontraron playlists en tu cuenta.</p>'; return updatePickUI(); }
-  var q=($('fSearch')?$('fSearch').value:'').trim().toLowerCase();
-  var list=q?state.playlists.filter(function(p){return p.name.toLowerCase().indexOf(q)!==-1}):state.playlists;
-  if(!list.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">Sin resultados para "'+q+'".</p>'; return updatePickUI(); }
+  var raw=($('fSearch')?$('fSearch').value:'').trim();
+  var terms=normText(raw).split(' ').filter(Boolean);
+  var list=terms.length
+    ? state.playlists.filter(function(p){ var n=normText(p.name); return terms.every(function(t){return n.indexOf(t)!==-1}); })
+    : state.playlists;
+  if(!list.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">Sin resultados para "'+raw+'".</p>'; return updatePickUI(); }
   list.forEach(function(p){
     var lab=document.createElement('label'); lab.className='opt';
     var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=formUris.indexOf(p.uri)!==-1;
@@ -541,6 +547,9 @@ async function applyBlock(b,why){
 }
 
 var busy=false;
+function blockFingerprint(b){
+  return [b.id, b.start, uris(b).slice().sort().join(','), b.pick||'one', b.mode].join('|');
+}
 async function tick(){
   renderTimeline();
   if(!state.token && !store('sp_refresh')) return;
@@ -551,7 +560,7 @@ async function tick(){
   renderBlocks();
   if(!$('autoToggle').checked) return;
   if(busy) return;
-  var key=b?(b.id+'|'+now.toDateString()+'|'+b.start):'none';
+  var key=b?(now.toDateString()+'|'+blockFingerprint(b)):'none';
   if(b && state.lastApplied!==key){
     busy=true;
     var ok=await applyBlock(b,'Bloque iniciado');
@@ -655,7 +664,11 @@ function renderBlocks(){
     ed.onclick=function(){ openForm(b.id); };
     var de=document.createElement('button'); de.className='ghost danger'; de.textContent='Eliminar';
     de.onclick=function(){
-      state.blocks=state.blocks.filter(function(x){return x.id!==b.id}); saveBlocks(); state.lastApplied=null; renderBlocks(); renderTimeline(); updateNow(activeBlock(new Date()));
+      var wasActive = state.current && state.current.id===b.id && state.lastApplied!=='none';
+      state.blocks=state.blocks.filter(function(x){return x.id!==b.id});
+      saveBlocks();
+      if(wasActive) state.lastApplied=null;
+      renderBlocks(); renderTimeline(); updateNow(activeBlock(new Date()));
     };
     act.appendChild(pl); act.appendChild(ed); act.appendChild(de);
     el.appendChild(bar); el.appendChild(mid); el.appendChild(act);
@@ -708,9 +721,14 @@ function saveForm(){
   if(start===end) return fail('El inicio y el término no pueden ser iguales.');
   if(!formDays.length) return fail('Elige al menos un día.');
   var nb={id:state.editing||('b'+Date.now()),start:start,end:end,uris:formUris.slice(),pick:$('fPick').value,mode:mode,days:formDays.slice()};
+  var prevActive=activeBlock(new Date());
   if(state.editing){ state.blocks=state.blocks.map(function(x){return x.id===state.editing?nb:x}); }
   else state.blocks.push(nb);
-  saveBlocks(); closeForm(); state.lastApplied=null;
+  saveBlocks(); closeForm();
+  var nowActive=activeBlock(new Date());
+  var sameStillSounding = prevActive && nowActive && prevActive.id===nowActive.id
+    && blockFingerprint(prevActive)===blockFingerprint(nowActive) && state.lastApplied!=='none';
+  if(!sameStillSounding) state.lastApplied=null;
   renderBlocks(); renderTimeline(); tick();
 }
 
