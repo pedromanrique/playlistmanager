@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Programador de playlists</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#eceae4; --card:#f7f6f2; --ink:#1c1f1d; --ink2:#5b605c; --line:#d4d1c8;
+  --vinyl:#1a8f4c; --vinyl-soft:#d5ecdd; --warn:#b3471f; --warn-soft:#f6dfd3;
+  --c1:#1a8f4c; --c2:#3a5fc4; --c3:#c46a1a; --c4:#8a3fb0; --c5:#b0233f;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#151816; --card:#1e2220; --ink:#ecebe5; --ink2:#9aa09b; --line:#333935;
+    --vinyl:#3ec877; --vinyl-soft:#1d3a2a; --warn:#f08a5d; --warn-soft:#3d2418;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151816; --card:#1e2220; --ink:#ecebe5; --ink2:#9aa09b; --line:#333935;
+  --vinyl:#3ec877; --vinyl-soft:#1d3a2a; --warn:#f08a5d; --warn-soft:#3d2418;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.5}
+.wrap{max-width:880px;margin:0 auto;padding:20px 16px 56px}
+h1,h2{font-family:'Bricolage Grotesque','DM Sans',system-ui,sans-serif;font-weight:700;margin:0;letter-spacing:-.02em}
+h1{font-size:clamp(28px,6vw,40px);line-height:1.05}
+h2{font-size:20px}
+p{margin:0}
+.muted{color:var(--ink2)}
+.small{font-size:14px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 14px;min-height:40px}
+button:hover{border-color:var(--ink2)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--vinyl);outline-offset:2px}
+button.primary{background:var(--vinyl);border-color:var(--vinyl);color:#fff;font-weight:700}
+:root[data-theme="dark"] button.primary,
+:root:not([data-theme="light"]) button.primary{color:#0d1a12}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]) button.primary{color:#fff}}
+button.ghost{background:transparent}
+button.danger{color:var(--warn)}
+input,select{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 10px;min-height:40px;width:100%}
+label{display:block;font-size:14px;color:var(--ink2);margin-bottom:4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.hidden{display:none!important}
+
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.head .sub{margin-top:6px;max-width:46ch}
+.user{display:flex;align-items:center;gap:10px}
+
+/* conexión */
+.connect{padding:28px 20px}
+.connect ol{padding-left:20px;margin:12px 0 18px;max-width:60ch}
+.connect li{margin:6px 0}
+.connect code,.uri{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:2px 6px;word-break:break-all}
+.uri{display:block;padding:8px 10px;margin:6px 0 2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+.row>.grow{flex:1;min-width:220px}
+.err{color:var(--warn);font-size:14px;margin-top:8px}
+
+/* ahora suena */
+.now{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.now-art{width:64px;height:64px;border-radius:8px;background:var(--vinyl-soft);flex:none;object-fit:cover}
+.now-body{flex:1;min-width:200px}
+.now-label{font-size:14px;color:var(--ink2)}
+.now-title{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;line-height:1.2}
+.pill{display:inline-block;font-size:13px;padding:2px 10px;border-radius:99px;background:var(--vinyl-soft);color:var(--vinyl);font-weight:500}
+.pill.off{background:var(--paper);color:var(--ink2);border:1px solid var(--line)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+
+/* línea de tiempo */
+.timeline{position:relative;margin:6px 0 4px}
+.hours{display:flex;justify-content:space-between;font-size:12px;color:var(--ink2);margin-bottom:6px}
+.track{position:relative;height:46px;background:var(--paper);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg{position:absolute;top:4px;bottom:4px;border-radius:5px;color:#fff;font-size:12px;font-weight:700;padding:0 6px;display:flex;align-items:center;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;opacity:.82}
+.seg.active{opacity:1;box-shadow:0 0 0 2px var(--ink)}
+.needle{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--warn);z-index:3}
+.needle::after{content:attr(data-t);position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--warn);font-weight:700;background:var(--paper);padding:0 3px}
+
+/* bloques */
+.blocks{margin-top:18px;display:grid;gap:10px}
+.block{display:grid;grid-template-columns:8px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px 12px 12px 0;background:var(--card);overflow:hidden}
+.block.active{border-color:var(--vinyl)}
+.bar{align-self:stretch;width:8px}
+.b-time{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:18px}
+.b-list{margin-top:2px}
+.b-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.b-actions button{padding:6px 10px;min-height:34px;font-size:14px}
+
+.plist{border:1px solid var(--line);border-radius:8px;background:var(--card);max-height:190px;overflow:auto;padding:4px}
+.plist label.opt{display:flex;align-items:center;gap:10px;margin:0;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:15px;color:var(--ink)}
+.plist label.opt:hover{background:var(--paper)}
+.plist input{width:auto;min-height:0;margin:0;flex:none}
+.hint{font-size:13px;color:var(--ink2);margin-top:6px}
+.empty{padding:26px 16px;text-align:center;border:1px dashed var(--line);border-radius:10px}
+.empty p+button{margin-top:12px}
+
+/* formulario */
+.form{margin-top:18px;border-top:1px solid var(--line);padding-top:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:99px;padding:6px 12px;min-height:36px;cursor:pointer;background:var(--card);font-size:14px;user-select:none}
+.chip input{width:auto;min-height:0;margin:0}
+.chip.on{background:var(--vinyl-soft);border-color:var(--vinyl);color:var(--vinyl)}
+
+.section{margin-top:22px}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.log{font-size:14px;color:var(--ink2);max-height:150px;overflow:auto}
+.log div{padding:3px 0;border-bottom:1px solid var(--line)}
+.notice{padding:12px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);font-size:14px;margin-bottom:14px}
+@media (prefers-reduced-motion:no-preference){.pill.live{animation:pulse 2s ease-in-out infinite}}
+@keyframes pulse{50%{opacity:.6}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <div>
+      <h1>Programador de playlists</h1>
+      <p class="muted sub">Define bloques horarios y Spotify cambia de playlist y de modo (random u orden) solo.</p>
+    </div>
+    <div class="user hidden" id="userBox">
+      <span class="small muted" id="userName"></span>
+      <button class="ghost" id="logoutBtn">Salir</button>
+    </div>
+  </div>
+
+  <!-- Conectar -->
+  <div class="card connect" id="connectCard">
+    <h2>Conecta tu cuenta de Spotify</h2>
+    <ol class="small">
+      <li>Entra a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com/dashboard</a> y crea una app (es gratis).</li>
+      <li>En la app, agrega esta dirección en <b>Redirect URIs</b> y guarda:
+        <span class="uri" id="redirectUri">…</span>
+      </li>
+      <li>Copia el <b>Client ID</b> de la app y pégalo aquí abajo.</li>
+    </ol>
+    <div class="row">
+      <div class="grow">
+        <label for="clientId">Client ID</label>
+        <input id="clientId" type="text" placeholder="a1b2c3d4e5f6…" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="primary" id="connectBtn">Conectar con Spotify</button>
+    </div>
+    <p class="err hidden" id="connectErr"></p>
+    <p class="small muted" style="margin-top:14px">Necesitas Spotify Premium. Tu Client ID y tu agenda se guardan solo en este navegador.</p>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="hidden">
+
+    <div class="notice hidden" id="notice"></div>
+
+    <div class="card">
+      <div class="now">
+        <img class="now-art" id="nowArt" alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==">
+        <div class="now-body">
+          <p class="now-label" id="nowLabel">Ahora</p>
+          <p class="now-title" id="nowTitle">Sin bloque activo</p>
+          <p class="small muted" id="nowSub"></p>
+        </div>
+        <span class="pill off" id="statePill">Pausado</span>
+      </div>
+
+      <div class="row" style="margin-bottom:14px">
+        <div class="grow">
+          <label for="deviceSel">Dispositivo de reproducción</label>
+          <select id="deviceSel"></select>
+        </div>
+        <button id="refreshDev">Actualizar</button>
+      </div>
+
+      <div class="timeline">
+        <div class="hours" id="hours"></div>
+        <div class="track" id="track"></div>
+      </div>
+    </div>
+
+    <div class="section card">
+      <div class="section-head">
+        <h2>Bloques</h2>
+        <div class="row">
+          <label class="chip" id="autoChip"><input type="checkbox" id="autoToggle" checked> Programación activa</label>
+          <button class="primary" id="addBtn">Agregar bloque</button>
+        </div>
+      </div>
+
+      <div class="blocks" id="blocks"></div>
+
+      <div class="form hidden" id="form">
+        <h2 id="formTitle" style="margin-bottom:12px">Nuevo bloque</h2>
+        <div class="grid">
+          <div><label for="fStart">Desde</label><input id="fStart" type="time" value="17:00"></div>
+          <div><label for="fEnd">Hasta</label><input id="fEnd" type="time" value="19:00"></div>
+          <div><label for="fMode">Modo</label>
+            <select id="fMode"><option value="shuffle">Random</option><option value="order">En orden</option></select>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <label>Playlists (marca una o varias)</label>
+          <div class="plist" id="fPlaylists"></div>
+          <p class="hint" id="fCount">Ninguna seleccionada.</p>
+        </div>
+        <div style="margin-top:12px" id="fPickWrap" class="hidden">
+          <label for="fPick">Con varias playlists</label>
+          <select id="fPick">
+            <option value="one">Elegir una al azar cada vez que empieza el bloque</option>
+            <option value="mix">Mezclar todas juntas en una sola cola</option>
+          </select>
+          <p class="hint" id="fPickHint"></p>
+        </div>
+        <div style="margin-top:12px">
+          <label>Días</label>
+          <div class="chips" id="fDays"></div>
+        </div>
+        <p class="err hidden" id="formErr"></p>
+        <div class="row" style="margin-top:16px">
+          <button class="primary" id="saveBtn">Guardar bloque</button>
+          <button class="ghost" id="cancelBtn">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section card">
+      <h2 style="margin-bottom:8px">Registro</h2>
+      <div class="log" id="log"><div>Sin actividad todavía.</div></div>
+    </div>
+
+    <p class="small muted" style="margin-top:16px">Deja esta pestaña abierta para que los cambios ocurran a su hora. En el celular, evita que se bloquee la pantalla o cierre el navegador.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+var SCOPES='user-modify-playback-state user-read-playback-state user-read-currently-playing playlist-read-private playlist-read-collaborative';
+var DAYS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+var COLORS=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)'];
+
+var LS={
+  get:function(k){try{return localStorage.getItem(k)}catch(e){return null}},
+  set:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},
+  del:function(k){try{localStorage.removeItem(k)}catch(e){}}
+};
+var memStore={};
+function store(k,v){ if(v===undefined){var r=LS.get(k); return r!==null?r:memStore[k]||null;} memStore[k]=v; LS.set(k,v); }
+
+var $=function(id){return document.getElementById(id)};
+var redirectUri=location.origin+location.pathname;
+$('redirectUri').textContent=redirectUri;
+$('clientId').value=store('sp_client')||'';
+
+var state={
+  token:null, playlists:[], devices:[], blocks:[], editing:null,
+  lastApplied:null, playing:false, current:null
+};
+
+try{ state.blocks=JSON.parse(store('sp_blocks')||'[]'); }catch(e){ state.blocks=[]; }
+function uris(b){ return b.uris && b.uris.length ? b.uris : (b.uri?[b.uri]:[]); }
+function saveBlocks(){ store('sp_blocks',JSON.stringify(state.blocks)); }
+
+function log(msg){
+  var box=$('log'); if(box.firstChild && box.firstChild.textContent==='Sin actividad todavía.') box.innerHTML='';
+  var d=document.createElement('div');
+  var t=new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  d.textContent=t+'  '+msg;
+  box.insertBefore(d,box.firstChild);
+  while(box.children.length>40) box.removeChild(box.lastChild);
+}
+
+/* ---------- PKCE ---------- */
+function rand(n){
+  var a=new Uint8Array(n); crypto.getRandomValues(a);
+  var cs='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  var s=''; for(var i=0;i<n;i++) s+=cs[a[i]%cs.length]; return s;
+}
+async function sha256(txt){ return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)); }
+function b64url(buf){
+  var s=''; new Uint8Array(buf).forEach(function(b){s+=String.fromCharCode(b)});
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function startLogin(){
+  var cid=$('clientId').value.trim();
+  var err=$('connectErr');
+  if(!cid){ err.textContent='Pega tu Client ID para continuar.'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+  store('sp_client',cid);
+  var verifier=rand(64);
+  var challenge=b64url(await sha256(verifier));
+  store('sp_verifier',verifier);
+  var p=new URLSearchParams({
+    client_id:cid, response_type:'code', redirect_uri:redirectUri,
+    scope:SCOPES, code_challenge_method:'S256', code_challenge:challenge
+  });
+  var url='https://accounts.spotify.com/authorize?'+p.toString();
+  try{ (window.top||window).location.href=url; }catch(e){ window.open(url,'_blank'); }
+}
+async function tokenRequest(params){
+  var r=await fetch('https://accounts.spotify.com/api/token',{
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:new URLSearchParams(params)
+  });
+  if(!r.ok) throw new Error('token '+r.status);
+  return r.json();
+}
+function keepTokens(j){
+  state.token=j.access_token;
+  store('sp_token',j.access_token);
+  store('sp_exp',String(Date.now()+(j.expires_in-60)*1000));
+  if(j.refresh_token) store('sp_refresh',j.refresh_token);
+}
+async function handleRedirect(){
+  var q=new URLSearchParams(location.search);
+  var code=q.get('code');
+  if(!code) return false;
+  history.replaceState({},'',redirectUri);
+  try{
+    var j=await tokenRequest({
+      client_id:store('sp_client'), grant_type:'authorization_code', code:code,
+      redirect_uri:redirectUri, code_verifier:store('sp_verifier')
+    });
+    keepTokens(j); return true;
+  }catch(e){
+    var err=$('connectErr'); err.textContent='No se pudo completar el acceso. Revisa que la Redirect URI coincida exactamente y vuelve a intentar.'; err.classList.remove('hidden');
+    return false;
+  }
+}
+async function ensureToken(){
+  var exp=parseInt(store('sp_exp')||'0',10);
+  if(store('sp_token') && Date.now()<exp){ state.token=store('sp_token'); return true; }
+  var rt=store('sp_refresh');
+  if(!rt) return false;
+  try{
+    var j=await tokenRequest({client_id:store('sp_client'),grant_type:'refresh_token',refresh_token:rt});
+    keepTokens(j); return true;
+  }catch(e){ return false; }
+}
+function logout(){
+  ['sp_token','sp_exp','sp_refresh','sp_verifier'].forEach(function(k){LS.del(k); delete memStore[k];});
+  state.token=null;
+  $('app').classList.add('hidden'); $('userBox').classList.add('hidden');
+  $('connectCard').classList.remove('hidden');
+}
+
+/* ---------- API ---------- */
+async function api(path,opts){
+  opts=opts||{};
+  if(!(await ensureToken())){ logout(); throw new Error('auth'); }
+  var r=await fetch('https://api.spotify.com/v1'+path,{
+    method:opts.method||'GET',
+    headers:Object.assign({'Authorization':'Bearer '+state.token},opts.body?{'Content-Type':'application/json'}:{}),
+    body:opts.body?JSON.stringify(opts.body):undefined
+  });
+  if(r.status===204||r.status===202) return {ok:true,status:r.status};
+  var data=null; try{ data=await r.json(); }catch(e){}
+  return {ok:r.ok,status:r.status,data:data};
+}
+
+/* ---------- datos ---------- */
+async function loadUser(){
+  var r=await api('/me');
+  if(r.ok){
+    $('userName').textContent=r.data.display_name||r.data.id;
+    if(r.data.product && r.data.product!=='premium'){
+      showNotice('Tu cuenta no es Premium. Spotify solo permite controlar la reproducción desde apps externas con Premium.');
+    }
+  }
+}
+async function loadPlaylists(){
+  var all=[], url='/me/playlists?limit=50';
+  while(url){
+    var r=await api(url);
+    if(!r.ok) break;
+    all=all.concat(r.data.items.filter(Boolean));
+    url=r.data.next?r.data.next.replace('https://api.spotify.com/v1',''):null;
+  }
+  state.playlists=all;
+  fillPlaylistSelect();
+  renderBlocks();
+}
+async function loadDevices(){
+  var r=await api('/me/player/devices');
+  var sel=$('deviceSel'), keep=store('sp_device')||'';
+  sel.innerHTML='';
+  var list=(r.ok&&r.data.devices)||[];
+  state.devices=list;
+  if(!list.length){
+    var o=document.createElement('option'); o.value=''; o.textContent='Abre Spotify en algún dispositivo y pulsa Actualizar';
+    sel.appendChild(o); return;
+  }
+  list.forEach(function(d){
+    var o=document.createElement('option'); o.value=d.id; o.textContent=d.name+(d.is_active?' (activo)':'');
+    sel.appendChild(o);
+  });
+  var pick=list.find(function(d){return d.id===keep}) || list.find(function(d){return d.is_active}) || list[0];
+  sel.value=pick.id;
+  store('sp_device',pick.id);
+}
+var formUris=[];
+function renderPlaylistChecks(){
+  var box=$('fPlaylists'); box.innerHTML='';
+  if(!state.playlists.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">No se encontraron playlists en tu cuenta.</p>'; }
+  state.playlists.forEach(function(p){
+    var lab=document.createElement('label'); lab.className='opt';
+    var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=formUris.indexOf(p.uri)!==-1;
+    cb.onchange=function(){
+      if(cb.checked){ if(formUris.indexOf(p.uri)===-1) formUris.push(p.uri); }
+      else formUris=formUris.filter(function(x){return x!==p.uri});
+      updatePickUI();
+    };
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(p.name));
+    box.appendChild(lab);
+  });
+  updatePickUI();
+}
+function updatePickUI(){
+  var n=formUris.length;
+  $('fCount').textContent=n===0?'Ninguna seleccionada.':(n===1?'1 playlist seleccionada.':n+' playlists seleccionadas.');
+  $('fPickWrap').classList.toggle('hidden',n<2);
+  $('fPickHint').textContent=$('fPick').value==='one'
+    ? 'Al empezar el bloque se sortea una playlist y suena esa hasta el final del bloque.'
+    : 'Se juntan las canciones de todas y se reproducen en una sola cola (hasta 100 canciones por arranque).';
+}
+function fillPlaylistSelect(){ renderPlaylistChecks(); }
+function playlistName(uri){
+  var p=state.playlists.find(function(x){return x.uri===uri});
+  return p?p.name:'Playlist no encontrada';
+}
+function blockName(b){
+  var u=uris(b);
+  if(u.length<=1) return u.length?playlistName(u[0]):'Sin playlist';
+  return u.map(playlistName).join(' / ');
+}
+function blockShort(b){
+  var u=uris(b);
+  if(u.length<=1) return u.length?playlistName(u[0]):'Sin playlist';
+  return u.length+' playlists';
+}
+
+/* ---------- lógica de horario ---------- */
+function toMin(t){ var a=t.split(':'); return parseInt(a[0],10)*60+parseInt(a[1],10); }
+function fmt(t){ return t; }
+function blockRanges(b){
+  var s=toMin(b.start), e=toMin(b.end);
+  if(e>s) return [{d:0,s:s,e:e}];
+  return [{d:0,s:s,e:1440},{d:1,s:0,e:e}];
+}
+function isActive(b,now){
+  var day=now.getDay(), m=now.getHours()*60+now.getMinutes();
+  var rs=blockRanges(b);
+  for(var i=0;i<rs.length;i++){
+    var r=rs[i];
+    var bd=(day-r.d+7)%7;
+    if(b.days.indexOf(bd)!==-1 && m>=r.s && m<r.e) return true;
+  }
+  return false;
+}
+function activeBlock(now){
+  var found=null;
+  state.blocks.forEach(function(b){ if(isActive(b,now)) found=b; });
+  return found;
+}
+
+async function playContext(uri,shuffleOn,dev){
+  var q=dev?('?device_id='+encodeURIComponent(dev)):'';
+  var dq=dev?('&device_id='+encodeURIComponent(dev)):'';
+  await api('/me/player/shuffle?state='+(shuffleOn?'true':'false')+dq,{method:'PUT'});
+  var r=await api('/me/player/play'+q,{method:'PUT',body:{context_uri:uri}});
+  if(r.ok && shuffleOn) await api('/me/player/shuffle?state=true'+dq,{method:'PUT'});
+  return r;
+}
+async function collectTracks(list){
+  var out=[];
+  for(var i=0;i<list.length;i++){
+    var id=list[i].split(':').pop();
+    var url='/playlists/'+id+'/tracks?limit=100&fields=items(track(uri,is_local,type)),next';
+    while(url){
+      var r=await api(url);
+      if(!r.ok) break;
+      r.data.items.forEach(function(it){
+        if(it && it.track && it.track.uri && !it.track.is_local && it.track.type==='track') out.push(it.track.uri);
+      });
+      url=r.data.next?r.data.next.replace('https://api.spotify.com/v1',''):null;
+    }
+  }
+  return out;
+}
+function shuffleArr(a){
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+async function applyBlock(b,why){
+  var dev=$('deviceSel').value||store('sp_device')||'';
+  var q=dev?('?device_id='+encodeURIComponent(dev)):'';
+  var list=uris(b);
+  var r, label;
+  if(!list.length){ log('El bloque no tiene playlists.'); return false; }
+
+  if(list.length===1){
+    r=await playContext(list[0],b.mode==='shuffle',dev);
+    label=playlistName(list[0]);
+  } else if((b.pick||'one')==='one'){
+    var chosen=list[Math.floor(Math.random()*list.length)];
+    r=await playContext(chosen,b.mode==='shuffle',dev);
+    label=playlistName(chosen)+' (elegida al azar entre '+list.length+')';
+  } else {
+    var tracks=await collectTracks(list);
+    if(!tracks.length){ log('No se encontraron canciones en las playlists del bloque.'); showNotice('No se pudieron leer las canciones de las playlists elegidas.'); return false; }
+    if(b.mode==='shuffle') shuffleArr(tracks); 
+    tracks=tracks.slice(0,750);
+    var dq=dev?('&device_id='+encodeURIComponent(dev)):'';
+    await api('/me/player/shuffle?state=false'+dq,{method:'PUT'});
+    r=await api('/me/player/play'+q,{method:'PUT',body:{uris:tracks.slice(0,100)}});
+    label='mezcla de '+list.length+' playlists ('+Math.min(tracks.length,100)+' canciones en cola)';
+  }
+
+  if(r.ok){
+    log((why||'Cambio')+': '+label+' · '+(b.mode==='shuffle'?'random':'en orden'));
+    return true;
+  }
+  var msg='No se pudo reproducir';
+  if(r.status===404) msg='No hay un dispositivo de Spotify activo. Abre Spotify y pulsa Actualizar.';
+  else if(r.status===403) msg='Spotify rechazó la orden. Revisa que tu cuenta sea Premium.';
+  else if(r.status===401) msg='La sesión expiró. Vuelve a conectar.';
+  log(msg);
+  showNotice(msg);
+  return false;
+}
+
+var busy=false;
+async function tick(){
+  renderTimeline();
+  if(!state.token && !store('sp_refresh')) return;
+  var now=new Date();
+  var b=activeBlock(now);
+  state.current=b;
+  updateNow(b);
+  renderBlocks();
+  if(!$('autoToggle').checked) return;
+  if(busy) return;
+  var key=b?(b.id+'|'+now.toDateString()+'|'+b.start):'none';
+  if(b && state.lastApplied!==key){
+    busy=true;
+    var ok=await applyBlock(b,'Bloque iniciado');
+    if(ok){ state.lastApplied=key; hideNotice(); }
+    else { state.lastApplied=key; }
+    busy=false;
+  } else if(!b && state.lastApplied && state.lastApplied!=='none'){
+    state.lastApplied='none';
+    log('Fin de bloque. Spotify sigue con lo último que estaba sonando.');
+  }
+}
+
+/* ---------- UI ---------- */
+function showNotice(t){ var n=$('notice'); n.textContent=t; n.classList.remove('hidden'); }
+function hideNotice(){ $('notice').classList.add('hidden'); }
+
+function updateNow(b){
+  var pill=$('statePill');
+  if(b){
+    $('nowLabel').textContent='Bloque activo hasta las '+b.end;
+    $('nowTitle').textContent=blockName(b);
+    $('nowSub').textContent=(b.mode==='shuffle'?'Modo random':'En orden')+' · desde las '+b.start;
+    pill.textContent=$('autoToggle').checked?'Programado':'Programación en pausa';
+    pill.className='pill '+($('autoToggle').checked?'live':'off');
+  } else {
+    $('nowLabel').textContent='Ahora';
+    $('nowTitle').textContent='Sin bloque activo';
+    $('nowSub').textContent=state.blocks.length?'Esperando el próximo bloque.':'Agrega tu primer bloque para empezar.';
+    pill.textContent='En espera'; pill.className='pill off';
+  }
+  if(b){
+    var p=state.playlists.find(function(x){return x.uri===uris(b)[0]});
+    var img=p&&p.images&&p.images[0]?p.images[0].url:null;
+    if(img) $('nowArt').src=img;
+  }
+}
+
+function renderHours(){
+  var h=$('hours'); if(h.children.length) return;
+  [0,4,8,12,16,20,24].forEach(function(x){ var s=document.createElement('span'); s.textContent=String(x).padStart(2,'0')+':00'; h.appendChild(s); });
+}
+function renderTimeline(){
+  renderHours();
+  var tr=$('track'); tr.innerHTML='';
+  var now=new Date(), day=now.getDay();
+  state.blocks.forEach(function(b,i){
+    blockRanges(b).forEach(function(r){
+      var bd=(day-r.d+7)%7;
+      if(b.days.indexOf(bd)===-1) return;
+      var s=document.createElement('div');
+      s.className='seg'+(isActive(b,now)?' active':'');
+      s.style.left=(r.s/1440*100)+'%';
+      s.style.width=((r.e-r.s)/1440*100)+'%';
+      s.style.background=COLORS[i%COLORS.length];
+      s.textContent=blockShort(b);
+      s.title=b.start+' – '+b.end+' · '+blockName(b);
+      tr.appendChild(s);
+    });
+  });
+  var m=now.getHours()*60+now.getMinutes();
+  var nd=document.createElement('div');
+  nd.className='needle'; nd.style.left=(m/1440*100)+'%';
+  nd.setAttribute('data-t',String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0'));
+  tr.appendChild(nd);
+}
+
+function daysLabel(days){
+  if(days.length===7) return 'Todos los días';
+  if(days.length===5 && [1,2,3,4,5].every(function(d){return days.indexOf(d)!==-1})) return 'Lunes a viernes';
+  if(days.length===2 && days.indexOf(0)!==-1 && days.indexOf(6)!==-1) return 'Fines de semana';
+  return days.slice().sort(function(a,b){return ((a+6)%7)-((b+6)%7)}).map(function(d){return DAYS[d]}).join(', ');
+}
+
+function renderBlocks(){
+  var box=$('blocks'); box.innerHTML='';
+  if(!state.blocks.length){
+    var e=document.createElement('div'); e.className='empty';
+    e.innerHTML='<p><b>Empieza tu programación</b></p><p class="small muted">Por ejemplo: Playlist A en random de 17:00 a 19:00, luego Playlist B en orden.</p>';
+    var btn=document.createElement('button'); btn.className='primary'; btn.textContent='Agregar bloque';
+    btn.onclick=function(){openForm(null)};
+    e.appendChild(btn); box.appendChild(e); return;
+  }
+  var sorted=state.blocks.map(function(b,i){return {b:b,i:i}}).sort(function(x,y){return toMin(x.b.start)-toMin(y.b.start)});
+  var now=new Date();
+  sorted.forEach(function(o){
+    var b=o.b;
+    var el=document.createElement('div');
+    el.className='block'+(isActive(b,now)?' active':'');
+    var bar=document.createElement('div'); bar.className='bar'; bar.style.background=COLORS[o.i%COLORS.length];
+    var mid=document.createElement('div');
+    var t=document.createElement('div'); t.className='b-time'; t.textContent=b.start+' – '+b.end;
+    var l=document.createElement('div'); l.className='b-list'; l.textContent=blockName(b);
+    var m=document.createElement('div'); m.className='small muted';
+    var extra=uris(b).length>1?(' · '+((b.pick||'one')==='one'?'Una al azar por bloque':'Mezcla de todas')):'';
+    m.textContent=(b.mode==='shuffle'?'Random':'En orden')+extra+' · '+daysLabel(b.days);
+    mid.appendChild(t); mid.appendChild(l); mid.appendChild(m);
+    var act=document.createElement('div'); act.className='b-actions';
+    var pl=document.createElement('button'); pl.textContent='Reproducir ahora';
+    pl.onclick=function(){ applyBlock(b,'Reproducción manual'); };
+    var ed=document.createElement('button'); ed.className='ghost'; ed.textContent='Editar';
+    ed.onclick=function(){ openForm(b.id); };
+    var de=document.createElement('button'); de.className='ghost danger'; de.textContent='Eliminar';
+    de.onclick=function(){
+      state.blocks=state.blocks.filter(function(x){return x.id!==b.id}); saveBlocks(); state.lastApplied=null; renderBlocks(); renderTimeline(); updateNow(activeBlock(new Date()));
+    };
+    act.appendChild(pl); act.appendChild(ed); act.appendChild(de);
+    el.appendChild(bar); el.appendChild(mid); el.appendChild(act);
+    box.appendChild(el);
+  });
+}
+
+/* formulario */
+var formDays=[0,1,2,3,4,5,6];
+function renderDayChips(){
+  var box=$('fDays'); box.innerHTML='';
+  [1,2,3,4,5,6,0].forEach(function(d){
+    var lab=document.createElement('label'); lab.className='chip'+(formDays.indexOf(d)!==-1?' on':'');
+    lab.style.marginBottom='0';
+    var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=formDays.indexOf(d)!==-1;
+    cb.onchange=function(){
+      if(cb.checked){ if(formDays.indexOf(d)===-1) formDays.push(d); } else { formDays=formDays.filter(function(x){return x!==d}); }
+      lab.classList.toggle('on',cb.checked);
+    };
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(DAYS[d]));
+    box.appendChild(lab);
+  });
+}
+function openForm(id){
+  state.editing=id;
+  $('formErr').classList.add('hidden');
+  var b=id?state.blocks.find(function(x){return x.id===id}):null;
+  $('formTitle').textContent=b?'Editar bloque':'Nuevo bloque';
+  var last=state.blocks.length?state.blocks.slice().sort(function(x,y){return toMin(x.end)-toMin(y.end)}).pop():null;
+  $('fStart').value=b?b.start:(last?last.end:'17:00');
+  $('fEnd').value=b?b.end:(last?addMin(last.end,120):'19:00');
+  $('fMode').value=b?b.mode:'shuffle';
+  formUris=b?uris(b).slice():[];
+  $('fPick').value=b&&b.pick?b.pick:'one';
+  renderPlaylistChecks();
+  formDays=b?b.days.slice():[0,1,2,3,4,5,6];
+  renderDayChips();
+  $('form').classList.remove('hidden');
+  $('form').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function addMin(t,m){ var x=(toMin(t)+m)%1440; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+function closeForm(){ $('form').classList.add('hidden'); state.editing=null; }
+function saveForm(){
+  var err=$('formErr');
+  var start=$('fStart').value, end=$('fEnd').value, mode=$('fMode').value;
+  function fail(t){ err.textContent=t; err.classList.remove('hidden'); }
+  if(!formUris.length) return fail('Elige al menos una playlist.');
+  if(!start||!end) return fail('Indica la hora de inicio y de término.');
+  if(start===end) return fail('El inicio y el término no pueden ser iguales.');
+  if(!formDays.length) return fail('Elige al menos un día.');
+  var nb={id:state.editing||('b'+Date.now()),start:start,end:end,uris:formUris.slice(),pick:$('fPick').value,mode:mode,days:formDays.slice()};
+  if(state.editing){ state.blocks=state.blocks.map(function(x){return x.id===state.editing?nb:x}); }
+  else state.blocks.push(nb);
+  saveBlocks(); closeForm(); state.lastApplied=null;
+  renderBlocks(); renderTimeline(); tick();
+}
+
+/* ---------- eventos ---------- */
+$('connectBtn').onclick=startLogin;
+$('logoutBtn').onclick=logout;
+$('addBtn').onclick=function(){ openForm(null); };
+$('cancelBtn').onclick=closeForm;
+$('fPick').onchange=updatePickUI;
+$('saveBtn').onclick=saveForm;
+$('refreshDev').onclick=function(){ loadDevices(); };
+$('deviceSel').onchange=function(){ store('sp_device',this.value); };
+$('autoToggle').onchange=function(){
+  var on=this.checked;
+  $('autoChip').classList.toggle('on',on);
+  state.lastApplied=null;
+  log(on?'Programación activada':'Programación en pausa');
+  tick();
+};
+$('autoChip').classList.add('on');
+
+/* ---------- inicio ---------- */
+async function boot(){
+  await handleRedirect();
+  if(await ensureToken()){
+    $('connectCard').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    $('userBox').classList.remove('hidden');
+    try{
+      await loadUser();
+      await Promise.all([loadPlaylists(),loadDevices()]);
+    }catch(e){}
+    renderBlocks(); renderTimeline(); tick();
+    setInterval(tick,15000);
+    setInterval(loadDevices,120000);
+  }
+}
+boot();
+
+})();
+</script>
+</body>
+</html>
