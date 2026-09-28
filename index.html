@@ -205,7 +205,8 @@ label{display:block;font-size:14px;color:var(--ink2);margin-bottom:4px}
           </div>
         </div>
         <div style="margin-top:12px">
-          <label>Playlists (marca una o varias)</label>
+          <label for="fSearch">Playlists (marca una o varias)</label>
+          <input id="fSearch" type="text" placeholder="Buscar playlist…" autocomplete="off" style="margin-bottom:8px">
           <div class="plist" id="fPlaylists"></div>
           <p class="hint" id="fCount">Ninguna seleccionada.</p>
         </div>
@@ -408,8 +409,11 @@ async function loadDevices(){
 var formUris=[];
 function renderPlaylistChecks(){
   var box=$('fPlaylists'); box.innerHTML='';
-  if(!state.playlists.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">No se encontraron playlists en tu cuenta.</p>'; }
-  state.playlists.forEach(function(p){
+  if(!state.playlists.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">No se encontraron playlists en tu cuenta.</p>'; return updatePickUI(); }
+  var q=($('fSearch')?$('fSearch').value:'').trim().toLowerCase();
+  var list=q?state.playlists.filter(function(p){return p.name.toLowerCase().indexOf(q)!==-1}):state.playlists;
+  if(!list.length){ box.innerHTML='<p class="small muted" style="padding:8px 10px">Sin resultados para "'+q+'".</p>'; return updatePickUI(); }
+  list.forEach(function(p){
     var lab=document.createElement('label'); lab.className='opt';
     var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=formUris.indexOf(p.uri)!==-1;
     cb.onchange=function(){
@@ -686,6 +690,7 @@ function openForm(id){
   $('fMode').value=b?b.mode:'shuffle';
   formUris=b?uris(b).slice():[];
   $('fPick').value=b&&b.pick?b.pick:'one';
+  $('fSearch').value='';
   renderPlaylistChecks();
   formDays=b?b.days.slice():[0,1,2,3,4,5,6];
   renderDayChips();
@@ -715,6 +720,7 @@ $('logoutBtn').onclick=logout;
 $('addBtn').onclick=function(){ openForm(null); };
 $('cancelBtn').onclick=closeForm;
 $('fPick').onchange=updatePickUI;
+$('fSearch').oninput=renderPlaylistChecks;
 $('saveBtn').onclick=saveForm;
 $('refreshDev').onclick=function(){ loadDevices(); };
 $('deviceSel').onchange=function(){ store('sp_device',this.value); };
